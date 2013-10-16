@@ -100,7 +100,7 @@ class MarconiClient(object):
         d.addErrback(_possibly_retry)
         return d
 
-    def push(self, queue_name, body, ttl):
+    def push_message(self, queue_name, body, ttl):
         path = '/v1/queues/{queue_name}/messages'.format(queue_name=queue_name)
         data = [
             {
@@ -123,7 +123,7 @@ class MarconiClient(object):
         d.addErrback(self._wrap_error)
         return d
 
-    def take(self, queue_name, ttl, grace, polling_interval=1):
+    def claim_message(self, queue_name, ttl, grace, polling_interval=1):
         path = '/v1/queues/{queue_name}/claims'.format(queue_name=queue_name)
         data = {
             'ttl': ttl,
