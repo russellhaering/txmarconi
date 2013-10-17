@@ -6,3 +6,5 @@ local/*
 src/*
 build/*
 docs/_build/*
+dist/*
+*.egg-info/*
