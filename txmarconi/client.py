@@ -100,6 +100,12 @@ class MarconiClient(object):
         d.addErrback(_possibly_retry)
         return d
 
+    def _expect_204(self, response):
+        if response.code == 204:
+            return None
+        else:
+            return self._handle_error_response(response)
+
     def push_message(self, queue_name, body, ttl):
         path = '/v1/queues/{queue_name}/messages'.format(queue_name=queue_name)
         data = [
@@ -157,46 +163,23 @@ class MarconiClient(object):
         return d
 
     def update_claim(self, claimed_message, ttl):
-        path = claimed_message.claim_href
         data = {
             'ttl': ttl,
         }
 
-        def _on_response(response):
-            if response.code == 204:
-                return None
-            else:
-                return self._handle_error_response(response)
-
-        d = self._request('PATCH', path, data=data)
-        d.addCallback(_on_response)
+        d = self._request('PATCH', claimed_message.claim_href, data=data)
+        d.addCallback(self._expect_204)
         d.addErrback(self._wrap_error)
         return d
 
     def release_claim(self, claimed_message):
-        path = claimed_message.claim_href
-
-        def _on_response(response):
-            if response.code == 204:
-                return None
-            else:
-                return self._handle_error_response(response)
-
-        d = self._request('DELETE', path)
-        d.addCallback(_on_response)
+        d = self._request('DELETE', claimed_message.claim_href)
+        d.addCallback(self._expect_204)
         d.addErrback(self._wrap_error)
         return d
 
     def delete_message(self, message):
-        path = message.href
-
-        def _on_response(response):
-            if response.code == 204:
-                return None
-            else:
-                return self._handle_error_response(response)
-
-        d = self._request('DELETE', path)
-        d.addCallback(_on_response)
+        d = self._request('DELETE', message.href)
+        d.addCallback(self._expect_204)
         d.addErrback(self._wrap_error)
         return d
