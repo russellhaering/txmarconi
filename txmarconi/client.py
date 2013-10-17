@@ -15,12 +15,15 @@ limitations under the License.
 """
 
 import json
+from StringIO import StringIO
 from uuid import uuid4
+
 
 from treq import content, json_content
 from treq.client import HTTPClient
-from twisted.internet import reactor, defer, error
+from twisted.internet import reactor, defer, error, task
 from twisted.python import log
+from twisted.web.client import FileBodyProducer
 from twisted.web._newclient import RequestTransmissionFailed
 
 from txmarconi import __version__
@@ -42,6 +45,17 @@ class ClaimedMarconiMessage(MarconiMessage):
     def __init__(self, **kwargs):
         super(ClaimedMarconiMessage, self).__init__(**kwargs)
         self.claim_href = kwargs.get('claim_href')
+
+
+class QuieterFileBodyProducer(FileBodyProducer):
+    """
+    A hack to keep Twisted quieter. From: http://twistedmatrix.com/trac/ticket/6528
+    """
+    def stopProducing(self):
+        try:
+            FileBodyProducer.stopProducing(self)
+        except task.TaskStopped:
+            pass
 
 
 class MarconiClient(object):
@@ -96,7 +110,12 @@ class MarconiClient(object):
             else:
                 return failure
 
-        d = self.http_client.request(method, url, headers=headers, data=json.dumps(data), params=params)
+        if data:
+            body = QuieterFileBodyProducer(StringIO(json.dumps(data)))
+        else:
+            body = None
+
+        d = self.http_client.request(method, url, headers=headers, data=body, params=params)
         d.addErrback(_possibly_retry)
         return d
 
