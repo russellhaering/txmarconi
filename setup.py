@@ -24,6 +24,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'treq >= 0.2',
+        'txKeystone == 0.1.2',
     ],
     author='Russell Haering',
     author_email='russellhaering@gmail.com',
