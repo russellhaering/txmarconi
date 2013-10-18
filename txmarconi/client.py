@@ -27,7 +27,7 @@ from twisted.web.client import FileBodyProducer, _HTTP11ClientFactory, HTTPConne
 
 from twisted.web._newclient import RequestTransmissionFailed
 
-from txmarconi import __version__
+from txmarconi.version import __version__
 
 
 class MarconiError(Exception):
