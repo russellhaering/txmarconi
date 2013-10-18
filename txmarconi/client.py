@@ -23,7 +23,8 @@ from treq import content, json_content
 from treq.client import HTTPClient
 from twisted.internet import reactor, defer, error, task
 from twisted.python import log
-from twisted.web.client import FileBodyProducer
+from twisted.web.client import FileBodyProducer, _HTTP11ClientFactory, HTTPConnectionPool
+
 from twisted.web._newclient import RequestTransmissionFailed
 
 from txmarconi import __version__
@@ -58,14 +59,30 @@ class QuieterFileBodyProducer(FileBodyProducer):
             pass
 
 
+class QuieterHTTP11ClientFactory(_HTTP11ClientFactory):
+    """
+    Normally, an _HTTP11ClientFactory logs two messages for every HTTP
+    request. When polling at high frequency this can result in a lot of
+    log messages. Use of this ClientFactory allows users to suppress
+    these messages.
+    """
+    noisy = False
+
+
 class MarconiClient(object):
     USER_AGENT = 'txmarconi/{version}'.format(version=__version__)
     RETRYABLE_ERRORS = [RequestTransmissionFailed]
 
-    def __init__(self, base_url='http://localhost:8888'):
+    def __init__(self, base_url='http://localhost:8888', quiet_requests=True):
         self.client_id = str(uuid4())
         self.base_url = base_url
-        self.http_client = HTTPClient.with_config()
+        if quiet_requests:
+            pool = HTTPConnectionPool(reactor, persistent=True)
+            pool._factory = QuieterHTTP11ClientFactory
+        else:
+            pool = None
+
+        self.http_client = HTTPClient.with_config(pool=pool)
 
     def _wrap_error(self, failure):
         if not failure.check(MarconiError):
