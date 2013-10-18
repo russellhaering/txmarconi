@@ -23,9 +23,17 @@ from treq import content, json_content
 from treq.client import HTTPClient
 from twisted.internet import reactor, defer, error, task
 from twisted.python import log
-from twisted.web.client import FileBodyProducer, _HTTP11ClientFactory, HTTPConnectionPool
-
+from twisted.web.client import (
+    Agent,
+    RedirectAgent,
+    ContentDecoderAgent,
+    GzipDecoder,
+    FileBodyProducer,
+    _HTTP11ClientFactory,
+    HTTPConnectionPool
+)
 from twisted.web._newclient import RequestTransmissionFailed
+from txKeystone import KeystoneAgent
 
 from txmarconi.version import __version__
 
@@ -73,16 +81,36 @@ class MarconiClient(object):
     USER_AGENT = 'txmarconi/{version}'.format(version=__version__)
     RETRYABLE_ERRORS = [RequestTransmissionFailed]
 
-    def __init__(self, base_url='http://localhost:8888', quiet_requests=True):
+    def __init__(self, base_url='http://localhost:8888', quiet_requests=True, **kwargs):
         self.client_id = str(uuid4())
         self.base_url = base_url
-        if quiet_requests:
-            pool = HTTPConnectionPool(reactor, persistent=True)
-            pool._factory = QuieterHTTP11ClientFactory
-        else:
-            pool = None
+        pool = HTTPConnectionPool(reactor, persistent=True)
+        agent = ContentDecoderAgent(RedirectAgent(Agent(reactor, pool=pool)), [('gzip', GzipDecoder)])
 
-        self.http_client = HTTPClient.with_config(pool=pool)
+        if quiet_requests:
+            pool._factory = QuieterHTTP11ClientFactory
+
+        auth_url = kwargs.get('auth_url')
+        if auth_url:
+            username = kwargs.get('username')
+            password = kwargs.get('password')
+            api_key = kwargs.get('api_key')
+
+            if not username:
+                raise RuntimeError('Marconi "auth_url" specified with no username')
+
+            if api_key:
+                cred = api_key
+                auth_type = 'api_key'
+            elif password:
+                cred = password
+                auth_type = 'password'
+            else:
+                raise RuntimeError('Marconi "auth_url" specified with no "password" or "api_key"')
+
+            agent = KeystoneAgent(agent, auth_url, (username, cred), auth_type=auth_type)
+
+        self.http_client = HTTPClient(agent)
 
     def _wrap_error(self, failure):
         if not failure.check(MarconiError):
