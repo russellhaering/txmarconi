@@ -16,7 +16,7 @@ limitations under the License.
 
 from setuptools import setup, find_packages
 
-from txmarconi import __version__
+from txmarconi.version import __version__
 
 setup(
     name='txmarconi',
