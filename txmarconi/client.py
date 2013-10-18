@@ -170,6 +170,20 @@ class MarconiClient(object):
         else:
             return self._handle_error_response(response)
 
+    def ensure_queue(self, queue_name):
+        path = '/v1/queues/{queue_name}'.format(queue_name=queue_name)
+
+        def _on_response(response):
+            if response.code in (201, 204):
+                return path
+            else:
+                return self._handle_error_response(response)
+
+        d = self._request('PUT', path)
+        d.addCallback(_on_response)
+        d.addErrback(self._wrap_error)
+        return d
+
     def push_message(self, queue_name, body, ttl):
         path = '/v1/queues/{queue_name}/messages'.format(queue_name=queue_name)
         data = [
